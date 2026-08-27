@@ -155,21 +155,17 @@ while True:
                     beep_alert("FISH")
                 
                 if conf > 60:
-                    print(f"[CRITICAL] VERY HIGH CONFIDENCE: {conf:.1f}% - THIS IS STRONG PREDICTION!")
+                    print(f"[CRITICAL] VERY HIGH CONFIDENCE: {conf:.1f}%")
                     beep_alert("CRITICAL")
                 elif conf > 50:
                     print(f"[HIGH] High Confidence: {conf:.1f}%")
                     beep_alert("HIGH_CONFIDENCE")
                 
                 if 2 in [item for item, _ in top4]:
-                    count_2 = sum(1 for item, _ in top4 if item == 2)
-                    if count_2 > 0:
-                        print(f"[INFO] CHICK (2) appears in top 4 predictions!")
+                    print("[INFO] CHICK (2) appears in top 4 predictions!")
                 
                 if 6 in [item for item, _ in top4]:
-                    count_6 = sum(1 for item, _ in top4 if item == 6)
-                    if count_6 > 0:
-                        print(f"[INFO] FISH (6) appears in top 4 predictions!")
+                    print("[INFO] FISH (6) appears in top 4 predictions!")
                 
                 print("\nPATTERN ANALYSIS:")
                 print("-" * 95)
@@ -178,7 +174,12 @@ while True:
                     print(f"TRIPLE SEQUENCE {last_three[0]}-{last_three[1]}-{last_three[2]}, next usually:")
                     top_after_triple = sorted(after_triple[last_three].items(), key=lambda x: x[1], reverse=True)[:3]
                     for num, count in top_after_triple:
-                        mark = " <-- CHICK!" if num == 2 else " <-- FISH!" if num == 6 else ""
+                        if num == 2:
+                            mark = " <-- CHICK!"
+                        elif num == 6:
+                            mark = " <-- FISH!"
+                        else:
+                            mark = ""
                         print(f"  -> {num} ({NAMES[num]}): {count} times{mark}")
                     print()
                 
@@ -186,7 +187,12 @@ while True:
                     print(f"DOUBLE SEQUENCE {last_two[0]}-{last_two[1]}, next usually:")
                     top_after_double = sorted(after_double[last_two].items(), key=lambda x: x[1], reverse=True)[:3]
                     for num, count in top_after_double:
-                        mark = " <-- CHICK!" if num == 2 else " <-- FISH!" if num == 6 else ""
+                        if num == 2:
+                            mark = " <-- CHICK!"
+                        elif num == 6:
+                            mark = " <-- FISH!"
+                        else:
+                            mark = ""
                         print(f"  -> {num} ({NAMES[num]}): {count} times{mark}")
                     print()
                 
@@ -194,7 +200,12 @@ while True:
                     print(f"After {last} ({NAMES[last]}), usually comes:")
                     top_after_single = sorted(after_single[last].items(), key=lambda x: x[1], reverse=True)[:3]
                     for num, count in top_after_single:
-                        mark = " <-- CHICK!" if num == 2 else " <-- FISH!" if num == 6 else ""
+                        if num == 2:
+                            mark = " <-- CHICK!"
+                        elif num == 6:
+                            mark = " <-- FISH!"
+                        else:
+                            mark = ""
                         print(f"  -> {num} ({NAMES[num]}): {count} times{mark}")
                 
                 print("\nGENERAL FREQUENCY (All Numbers):")
@@ -204,7 +215,12 @@ while True:
                     percentage = (count / last_len * 100) if last_len > 0 else 0
                     bar = "*" * int(percentage / 2)
                     in_top4 = "STAR" if any(item == i for item, _ in top4) else "    "
-                    special = " <- CHICK WATCH!" if i == 2 else " <- FISH WATCH!" if i == 6 else ""
+                    if i == 2:
+                        special = " <- CHICK WATCH!"
+                    elif i == 6:
+                        special = " <- FISH WATCH!"
+                    else:
+                        special = ""
                     print(f"{in_top4} Number {i} ({NAMES[i]:10s}): {count:5d} times | {percentage:6.2f}% {bar}{special}")
                 
                 print("\n" + "=" * 95 + "\n")
