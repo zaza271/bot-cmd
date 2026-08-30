@@ -21,12 +21,12 @@ def load_history():
 
 def load_stats():
     if not os.path.exists(stats_path):
-        return {'correct': 0, 'total': 0, 'last_prediction': None}
+        return {'ok': 0, 'no': 0, 'total': 0, 'last_pred': None}
     try:
         with open(stats_path, "r", encoding="utf-8") as f:
             return json.load(f)
     except:
-        return {'correct': 0, 'total': 0, 'last_prediction': None}
+        return {'ok': 0, 'no': 0, 'total': 0, 'last_pred': None}
 
 def save_stats(stats):
     try:
@@ -73,27 +73,17 @@ def analyze(hist):
             st = sum(after_single[last].values())
             if st > 0:
                 score += (sc / st) * 30
-        gp = freq.get(num, 0) / len(hist) if len(hist) > 0 else 0
+        gp = freq.get(num, 0) / len(hist)
         score += gp * 10
         scores[num] = score
     
     ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
     top4 = ranked[:4]
-    total = sum(s for _, s in top4)
-    conf = (total / sum(scores.values()) * 100) if sum(scores.values()) > 0 else 0
     
-    return {
-        'top4': top4,
-        'conf': conf,
-        'freq': freq,
-        'after_triple': after_triple,
-        'last': last,
-        'last_two': last_two,
-        'last_three': last_three
-    }
+    return {'top4': top4, 'freq': freq, 'after_triple': after_triple, 'last': last, 'last_three': last_three}
 
 print("=" * 100)
-print("ADVANCED PATTERN ANALYZER BOT - V3 (With Accuracy Tracking)")
+print("BOT V5 - ADVANCED PATTERN ANALYZER (4 TARGETS + OK/NO)")
 print("=" * 100)
 
 last_len = 0
@@ -105,99 +95,58 @@ while True:
         if len(hist) > last_len:
             if last_len > 0 and len(hist) > last_len:
                 actual = hist[-1]
-                predicted = stats.get('last_prediction')
+                predicted = stats.get('last_pred')
                 if predicted:
-                    stats['total'] = stats.get('total', 0) + 1
+                    stats['total'] += 1
                     if predicted == actual:
-                        stats['correct'] = stats.get('correct', 0) + 1
-                        accuracy = (stats['correct'] / stats['total'] * 100) if stats['total'] > 0 else 0
-                        print(f"\n✓ CORRECT! Predicted: {predicted} ({NAMES[predicted]}) = Actual: {actual} ({NAMES[actual]})")
-                        print(f"✓ SCORE: {stats['correct']}/{stats['total']} | Accuracy: {accuracy:.1f}%")
-                        winsound.Beep(2000, 200)
+                        stats['ok'] += 1
+                        status = "[OK]"
+                        beep_freq = 2000
                     else:
-                        accuracy = (stats['correct'] / stats['total'] * 100) if stats['total'] > 0 else 0
-                        print(f"\n✗ WRONG! Predicted: {predicted} ({NAMES[predicted]}) != Actual: {actual} ({NAMES[actual]})")
-                        print(f"✗ SCORE: {stats['correct']}/{stats['total']} | Accuracy: {accuracy:.1f}%")
-                        winsound.Beep(600, 150)
+                        stats['no'] += 1
+                        status = "[NO]"
+                        beep_freq = 600
+                    
+                    accuracy = (stats['ok'] / stats['total'] * 100)
+                    winsound.Beep(beep_freq, 100)
+                    save_stats(stats)
             
             last_len = len(hist)
             res = analyze(hist)
-            
             if res:
                 top4 = res['top4']
-                conf = res['conf']
-                freq = res['freq']
-                after_triple = res['after_triple']
-                last = res['last']
-                last_two = res['last_two']
-                last_three = res['last_three']
+                first_target = top4[0][0]
+                targets_str = " | ".join([str(x[0]) for x in top4])
                 
-                top4_str = "".join([str(x[0]) for x in top4])
-                first_target = top4[0][0] if top4 else None
+                accuracy = (stats['ok'] / stats['total'] * 100) if stats['total'] > 0 else 0
+                status_display = "[OK]" if stats['total'] > 0 else ""
                 
-                print(f"\n[Round: {last_len}] Last: {last} ({NAMES[last]})")
-                if last_three:
-                    print(f"Last Three: {last_three[0]} -> {last_three[1]} -> {last_three[2]}")
-                print(f"NEXT PREDICTION: >>> {top4_str} <<<")
-                print("+" + "=" * 98 + "+")
-                print("RANK |  NUM  |  SCORE  |  NAME           | TYPE  |  NEXT PREDICTION")
-                print("+" + "=" * 98 + "+")
+                if stats['total'] > 0:
+                    if stats.get('last_pred') == hist[-2]:
+                        status_display = "[OK]"
+                    else:
+                        status_display = "[NO]"
                 
-                for rank, (item, score) in enumerate(top4, 1):
-                    itype = "VEG " if item in VEG else "MEAT"
-                    marker = "[PREDICTED]" if rank == 1 else ""
-                    print(f"  {rank}    |   {item:2d}   |  {score:6.2f}  |  {NAMES[item]:15s} | {itype} |  {marker}")
+                print(f"Round {last_len}: {targets_str} {'.'*50} {status_display}")
                 
-                print("+" + "=" * 98 + "+")
-                print(f"Overall Confidence: {conf:.1f}%")
+                if stats['total'] % 100 == 0 and stats['total'] > 0:
+                    print(f"\n{'='*100}")
+                    print(f"SCORE: OK = {stats['ok']} | NO = {stats['no']} | Total = {stats['total']} | Accuracy = {accuracy:.2f}%")
+                    print(f"{'='*100}\n")
                 
-                if first_target == 2:
-                    print("\n[ALERT] CHICK (2) IS PRIMARY TARGET!!!")
-                    winsound.Beep(1200, 150)
-                elif first_target == 6:
-                    print("\n[ALERT] FISH (6) IS PRIMARY TARGET!!!")
-                    winsound.Beep(800, 200)
-                
-                if conf > 60:
-                    print(f"[CRITICAL] VERY HIGH CONFIDENCE: {conf:.1f}%")
-                    winsound.Beep(2000, 100)
-                
-                meat_in_top4 = sum(1 for x, _ in top4 if x in MEAT)
-                veg_in_top4 = sum(1 for x, _ in top4 if x in VEG)
-                print(f"[INFO] Top 4: {veg_in_top4} VEG + {meat_in_top4} MEAT")
-                
-                print("\nPATTERN ANALYSIS (Last Triple):")
-                print("-" * 100)
-                if last_three and last_three in after_triple and after_triple[last_three]:
-                    print(f"After Pattern {last_three[0]}-{last_three[1]}-{last_three[2]}:")
-                    top_after = sorted(after_triple[last_three].items(), key=lambda x: x[1], reverse=True)[:6]
-                    for rank, (num, count) in enumerate(top_after, 1):
-                        itype = "[VEG]" if num in VEG else "[MEAT]"
-                        pred_marker = " <-- NEXT PREDICTION" if rank == 1 else ""
-                        print(f"  {rank}. {num} ({NAMES[num]:10s}): {count:4d} times {itype}{pred_marker}")
-                
-                print("\nGENERAL FREQUENCY:")
-                print("-" * 100)
-                for i in range(1, 9):
-                    count = freq.get(i, 0)
-                    pct = (count / last_len * 100) if last_len > 0 else 0
-                    bar = "*" * int(pct / 2)
-                    in_top = "★ " if any(x == i for x, _ in top4) else "  "
-                    itype = "VEG" if i in VEG else "MEAT"
-                    print(f"{in_top}{itype} {i} ({NAMES[i]:10s}): {count:5d} ({pct:6.2f}%) {bar}")
-                
-                accuracy = (stats['correct'] / stats['total'] * 100) if stats['total'] > 0 else 0
-                print(f"\n[STATS] Correct: {stats['correct']}/{stats['total']} | Accuracy: {accuracy:.1f}%")
-                print("=" * 100)
-                
-                stats['last_prediction'] = first_target
+                stats['last_pred'] = first_target
                 save_stats(stats)
         
-        time.sleep(0.5)
+        time.sleep(0.3)
     
     except KeyboardInterrupt:
-        print("\n\nBot stopped. Goodbye!")
+        print(f"\n\n{'='*100}")
+        print("BOT STOPPED")
+        if stats['total'] > 0:
+            accuracy = (stats['ok'] / stats['total'] * 100)
+            print(f"FINAL SCORE: OK = {stats['ok']} | NO = {stats['no']} | Total = {stats['total']}")
+            print(f"ACCURACY = {accuracy:.2f}%")
+        print(f"{'='*100}")
         break
-    except Exception as e:
-        print(f"[ERROR] {e}")
-        time.sleep(1)
+    except Exception as err:
+        pass
