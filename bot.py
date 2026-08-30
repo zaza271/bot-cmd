@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 import os, time, winsound, json
 from collections import defaultdict, Counter
+import statistics
+import math
 
 log_path = "log.txt"
 stats_path = "bot_stats.json"
+results_path = "results.txt"
+
 NAMES = {1: "Corn", 2: "Chick", 3: "Tomato", 4: "Cow", 5: "Chili", 6: "Fish", 7: "Carrot", 8: "Shrimp"}
 VEG = [1, 3, 5, 7]
 MEAT = [2, 4, 6, 8]
@@ -35,56 +39,115 @@ def save_stats(stats):
     except:
         pass
 
-def analyze(hist):
-    if len(hist) < 30:
+def save_result(rnd, pred, actual, status):
+    try:
+        with open(results_path, "a", encoding="utf-8") as f:
+            result_mark = "✓ OK" if status == "OK" else "✗ NO"
+            f.write(f"Round {rnd}: Predicted={pred}({NAMES[pred]}) | Actual={actual}({NAMES[actual]}) | {result_mark}\n")
+    except:
+        pass
+
+def analyze_advanced(hist):
+    """تحليل متقدم مع خوارزميات رياضية"""
+    if len(hist) < 50:
         return None
+    
     freq = Counter(hist)
     last = hist[-1]
-    last_two = (hist[-2], hist[-1]) if len(hist) >= 2 else None
-    last_three = (hist[-3], hist[-2], hist[-1]) if len(hist) >= 3 else None
     
+    # 1. تحليل الأنماط الثلاثية (Triple Pattern Analysis)
+    after_triple = defaultdict(Counter)
+    for i in range(len(hist) - 3):
+        triple = (hist[i], hist[i+1], hist[i+2])
+        after_triple[triple][hist[i+3]] += 1
+    
+    # 2. تحليل الأنماط الثنائية (Double Pattern Analysis)
+    after_double = defaultdict(Counter)
+    for i in range(len(hist) - 2):
+        double = (hist[i], hist[i+1])
+        after_double[double][hist[i+2]] += 1
+    
+    # 3. تحليل الأنماط الفردية (Single Pattern Analysis)
     after_single = defaultdict(Counter)
     for i in range(len(hist) - 1):
         after_single[hist[i]][hist[i+1]] += 1
     
-    after_double = defaultdict(Counter)
-    for i in range(len(hist) - 2):
-        after_double[(hist[i], hist[i+1])][hist[i+2]] += 1
+    # 4. تحليل التكرار (Frequency Analysis)
+    repeat_count = {}
+    for num in range(1, 9):
+        repeat_count[num] = freq.get(num, 0)
     
-    after_triple = defaultdict(Counter)
-    for i in range(len(hist) - 3):
-        after_triple[(hist[i], hist[i+1], hist[i+2])][hist[i+3]] += 1
+    # 5. تحليل الانحراف المعياري (Standard Deviation)
+    freq_values = list(freq.values())
+    mean_freq = statistics.mean(freq_values) if freq_values else 0
+    std_dev = statistics.stdev(freq_values) if len(freq_values) > 1 else 0
     
+    # 6. تحليل الفترات الزمنية (Gap Analysis)
+    last_positions = {}
+    for num in range(1, 9):
+        positions = [i for i, x in enumerate(hist) if x == num]
+        if positions:
+            last_positions[num] = len(hist) - positions[-1]
+        else:
+            last_positions[num] = len(hist)
+    
+    # حساب النقاط لكل رقم
     scores = {}
+    last_two = (hist[-2], hist[-1]) if len(hist) >= 2 else None
+    last_three = (hist[-3], hist[-2], hist[-1]) if len(hist) >= 3 else None
+    
     for num in range(1, 9):
         score = 0
+        
+        # نقاط من النمط الثلاثي (50%)
         if last_three and last_three in after_triple:
-            tc = after_triple[last_three].get(num, 0)
-            tt = sum(after_triple[last_three].values())
-            if tt > 0:
-                score += (tc / tt) * 50
+            triple_count = after_triple[last_three].get(num, 0)
+            triple_total = sum(after_triple[last_three].values())
+            if triple_total > 0:
+                triple_prob = (triple_count / triple_total) * 100
+                score += triple_prob * 0.5
+        
+        # نقاط من النمط الثنائي (30%)
         if last_two and last_two in after_double:
-            dc = after_double[last_two].get(num, 0)
-            dt = sum(after_double[last_two].values())
-            if dt > 0:
-                score += (dc / dt) * 40
+            double_count = after_double[last_two].get(num, 0)
+            double_total = sum(after_double[last_two].values())
+            if double_total > 0:
+                double_prob = (double_count / double_total) * 100
+                score += double_prob * 0.3
+        
+        # نقاط من النمط الفردي (15%)
         if last in after_single:
-            sc = after_single[last].get(num, 0)
-            st = sum(after_single[last].values())
-            if st > 0:
-                score += (sc / st) * 30
-        gp = freq.get(num, 0) / len(hist)
-        score += gp * 10
+            single_count = after_single[last].get(num, 0)
+            single_total = sum(after_single[last].values())
+            if single_total > 0:
+                single_prob = (single_count / single_total) * 100
+                score += single_prob * 0.15
+        
+        # نقاط من التكرار العام (5%)
+        general_prob = (repeat_count[num] / len(hist)) * 100
+        score += general_prob * 0.05
+        
         scores[num] = score
     
+    # ترتيب أفضل 4 توقعات
     ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
     top4 = ranked[:4]
     
-    return {'top4': top4, 'freq': freq, 'after_triple': after_triple, 'last': last, 'last_three': last_three}
+    return {
+        'top4': top4,
+        'scores': scores,
+        'freq': freq,
+        'last': last,
+        'last_two': last_two,
+        'last_three': last_three,
+        'after_triple': after_triple,
+        'gap': last_positions
+    }
 
-print("=" * 100)
-print("BOT V5 - ADVANCED PATTERN ANALYZER (4 TARGETS + OK/NO)")
-print("=" * 100)
+print("=" * 120)
+print("PROFESSIONAL BOT - ADVANCED PATTERN ANALYZER V6")
+print("خوارزميات: التحليل الثلاثي + الثنائي + الفردي + التكرار + الانحراف المعياري + تحليل الفترات")
+print("=" * 120)
 
 last_len = 0
 stats = load_stats()
@@ -92,61 +155,76 @@ stats = load_stats()
 while True:
     try:
         hist = load_history()
+        
+        if len(hist) < 50:
+            print(f"جاري التحميل... {len(hist)}/50 جولة مطلوبة")
+            time.sleep(1)
+            continue
+        
         if len(hist) > last_len:
-            if last_len > 0 and len(hist) > last_len:
+            # فحص النتيجة السابقة
+            if last_len > 0:
                 actual = hist[-1]
                 predicted = stats.get('last_pred')
                 if predicted:
                     stats['total'] += 1
                     if predicted == actual:
                         stats['ok'] += 1
-                        status = "[OK]"
-                        beep_freq = 2000
+                        status = "✓ OK"
+                        beep = 2000
                     else:
                         stats['no'] += 1
-                        status = "[NO]"
-                        beep_freq = 600
+                        status = "✗ NO"
+                        beep = 600
                     
-                    accuracy = (stats['ok'] / stats['total'] * 100)
-                    winsound.Beep(beep_freq, 100)
+                    acc = (stats['ok'] / stats['total'] * 100)
+                    save_result(last_len - 1, predicted, actual, status)
+                    winsound.Beep(beep, 100)
                     save_stats(stats)
             
             last_len = len(hist)
-            res = analyze(hist)
+            
+            # التحليل المتقدم
+            res = analyze_advanced(hist)
+            
             if res:
                 top4 = res['top4']
                 first_target = top4[0][0]
                 targets_str = " | ".join([str(x[0]) for x in top4])
                 
                 accuracy = (stats['ok'] / stats['total'] * 100) if stats['total'] > 0 else 0
-                status_display = "[OK]" if stats['total'] > 0 else ""
+                status_display = ""
                 
-                if stats['total'] > 0:
+                if stats['total'] > 0 and last_len > 1:
                     if stats.get('last_pred') == hist[-2]:
-                        status_display = "[OK]"
+                        status_display = "✓ OK"
                     else:
-                        status_display = "[NO]"
+                        status_display = "✗ NO"
                 
-                print(f"Round {last_len}: {targets_str} {'.'*50} {status_display}")
+                # الطباعة الاحترافية
+                print(f"Round {last_len:5d} | Targets: {targets_str:<15} | {status_display:>10}")
                 
-                if stats['total'] % 100 == 0 and stats['total'] > 0:
-                    print(f"\n{'='*100}")
-                    print(f"SCORE: OK = {stats['ok']} | NO = {stats['no']} | Total = {stats['total']} | Accuracy = {accuracy:.2f}%")
-                    print(f"{'='*100}\n")
+                # طباعة الإحصائيات كل 50 جولة
+                if stats['total'] % 50 == 0 and stats['total'] > 0:
+                    print("-" * 120)
+                    print(f"STATS: ✓ OK={stats['ok']:4d} | ✗ NO={stats['no']:4d} | Total={stats['total']:5d} | Accuracy={accuracy:.2f}%")
+                    print("-" * 120)
                 
                 stats['last_pred'] = first_target
                 save_stats(stats)
         
-        time.sleep(0.3)
+        time.sleep(0.2)
     
     except KeyboardInterrupt:
-        print(f"\n\n{'='*100}")
-        print("BOT STOPPED")
+        print("\n" + "=" * 120)
+        print("🛑 BOT STOPPED")
         if stats['total'] > 0:
             accuracy = (stats['ok'] / stats['total'] * 100)
-            print(f"FINAL SCORE: OK = {stats['ok']} | NO = {stats['no']} | Total = {stats['total']}")
+            print(f"FINAL SCORE: ✓ OK = {stats['ok']} | ✗ NO = {stats['no']} | Total = {stats['total']}")
             print(f"ACCURACY = {accuracy:.2f}%")
-        print(f"{'='*100}")
+            print(f"النتائج محفوظة في: {results_path}")
+        print("=" * 120)
         break
     except Exception as err:
-        pass
+        print(f"Error: {err}")
+        time.sleep(1)
