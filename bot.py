@@ -4,7 +4,7 @@ from collections import defaultdict, Counter
 import statistics
 import math
 
-log_path = "log.txt"
+log_path = "log"  # بدون .txt
 stats_path = "bot_stats.json"
 results_path = "results.txt"
 
@@ -14,13 +14,16 @@ MEAT = [2, 4, 6, 8]
 
 def load_history():
     if not os.path.exists(log_path):
+        print(f"❌ خطأ: لم أجد الملف '{log_path}'")
         return []
     try:
         with open(log_path, "r", encoding="utf-8") as f:
             c = f.read().strip()
             data = [int(x) for x in c.split(",") if x.strip().isdigit() and 1 <= int(x) <= 8]
+            print(f"✓ تم تحميل {len(data)} جولة من الملف '{log_path}'")
             return data
-    except:
+    except Exception as err:
+        print(f"❌ خطأ في قراءة الملف: {err}")
         return []
 
 def load_stats():
@@ -144,86 +147,97 @@ def analyze_advanced(hist):
         'gap': last_positions
     }
 
-print("=" * 120)
-print("PROFESSIONAL BOT - ADVANCED PATTERN ANALYZER V6")
+print("=" * 130)
+print("🎯 PROFESSIONAL BOT - ADVANCED PATTERN ANALYZER V6")
 print("خوارزميات: التحليل الثلاثي + الثنائي + الفردي + التكرار + الانحراف المعياري + تحليل الفترات")
-print("=" * 120)
+print("=" * 130)
 
 last_len = 0
 stats = load_stats()
 
+# تحميل البيانات
+hist = load_history()
+
+if len(hist) < 50:
+    print(f"❌ خطأ: البيانات قليلة جداً ({len(hist)} جولة). المطلوب 50 جولة على الأقل!")
+    exit()
+
+print(f"✓ تم التحميل بنجاح! البيانات: {len(hist)} جولة\n")
+print("=" * 130)
+
+last_len = len(hist)
+last_check = len(hist)
+
 while True:
     try:
+        # فحص إذا كانت هناك بيانات جديدة
         hist = load_history()
-        
-        if len(hist) < 50:
-            print(f"جاري التحميل... {len(hist)}/50 جولة مطلوبة")
-            time.sleep(1)
-            continue
         
         if len(hist) > last_len:
             # فحص النتيجة السابقة
-            if last_len > 0:
-                actual = hist[-1]
-                predicted = stats.get('last_pred')
-                if predicted:
-                    stats['total'] += 1
-                    if predicted == actual:
-                        stats['ok'] += 1
-                        status = "✓ OK"
-                        beep = 2000
-                    else:
-                        stats['no'] += 1
-                        status = "✗ NO"
-                        beep = 600
-                    
-                    acc = (stats['ok'] / stats['total'] * 100)
-                    save_result(last_len - 1, predicted, actual, status)
-                    winsound.Beep(beep, 100)
-                    save_stats(stats)
+            actual = hist[-1]
+            predicted = stats.get('last_pred')
+            if predicted:
+                stats['total'] += 1
+                if predicted == actual:
+                    stats['ok'] += 1
+                    status = "✓ OK"
+                    beep = 2000
+                else:
+                    stats['no'] += 1
+                    status = "✗ NO"
+                    beep = 600
+                
+                acc = (stats['ok'] / stats['total'] * 100)
+                save_result(last_len, predicted, actual, status)
+                winsound.Beep(beep, 100)
+                save_stats(stats)
             
             last_len = len(hist)
+        
+        # التحليل المتقدم كل 5 جولات
+        if len(hist) % 5 == 0 and len(hist) > last_check:
+            last_check = len(hist)
             
-            # التحليل المتقدم
             res = analyze_advanced(hist)
             
             if res:
                 top4 = res['top4']
                 first_target = top4[0][0]
-                targets_str = " | ".join([str(x[0]) for x in top4])
+                targets_str = " | ".join([f"{x[0]} ({NAMES[x[0]][:4]})" for x in top4])
                 
                 accuracy = (stats['ok'] / stats['total'] * 100) if stats['total'] > 0 else 0
                 status_display = ""
                 
-                if stats['total'] > 0 and last_len > 1:
+                if stats['total'] > 0 and len(hist) > 1:
                     if stats.get('last_pred') == hist[-2]:
                         status_display = "✓ OK"
                     else:
                         status_display = "✗ NO"
                 
                 # الطباعة الاحترافية
-                print(f"Round {last_len:5d} | Targets: {targets_str:<15} | {status_display:>10}")
+                print(f"Round {len(hist):6d} | Targets: {targets_str:<40} | {status_display:>10}")
                 
                 # طباعة الإحصائيات كل 50 جولة
                 if stats['total'] % 50 == 0 and stats['total'] > 0:
-                    print("-" * 120)
-                    print(f"STATS: ✓ OK={stats['ok']:4d} | ✗ NO={stats['no']:4d} | Total={stats['total']:5d} | Accuracy={accuracy:.2f}%")
-                    print("-" * 120)
+                    print("-" * 130)
+                    print(f"📊 STATS: ✓ OK={stats['ok']:5d} | ✗ NO={stats['no']:5d} | Total={stats['total']:6d} | Accuracy={accuracy:.2f}%")
+                    print("-" * 130)
                 
                 stats['last_pred'] = first_target
                 save_stats(stats)
         
-        time.sleep(0.2)
+        time.sleep(0.5)
     
     except KeyboardInterrupt:
-        print("\n" + "=" * 120)
+        print("\n" + "=" * 130)
         print("🛑 BOT STOPPED")
         if stats['total'] > 0:
             accuracy = (stats['ok'] / stats['total'] * 100)
-            print(f"FINAL SCORE: ✓ OK = {stats['ok']} | ✗ NO = {stats['no']} | Total = {stats['total']}")
-            print(f"ACCURACY = {accuracy:.2f}%")
-            print(f"النتائج محفوظة في: {results_path}")
-        print("=" * 120)
+            print(f"📊 FINAL SCORE: ✓ OK = {stats['ok']} | ✗ NO = {stats['no']} | Total = {stats['total']}")
+            print(f"🎯 ACCURACY = {accuracy:.2f}%")
+            print(f"📁 النتائج محفوظة في: {results_path}")
+        print("=" * 130)
         break
     except Exception as err:
         print(f"Error: {err}")
