@@ -1,7 +1,16 @@
 import time
-import cv2
-import numpy as np
-import pyautogui
+try:
+    import cv2
+except ImportError:  # pragma: no cover - optional dependency for image processing
+    cv2 = None
+try:
+    import numpy as np
+except ImportError:  # pragma: no cover - optional dependency for image processing
+    np = None
+try:
+    import pyautogui
+except ImportError:  # pragma: no cover - optional dependency for automation
+    pyautogui = None
 
 # إعدادات المراقبة والتحليل
 CONFIDENCE_THRESHOLD = 75.0

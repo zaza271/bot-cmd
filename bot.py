@@ -1,7 +1,29 @@
 # -*- coding: utf-8 -*-
-import os, time, winsound, json
+import os, time, json
 from collections import defaultdict, Counter
 from collections import deque
+
+try:
+    import cv2
+except ImportError:  # pragma: no cover - optional dependency for image processing
+    cv2 = None
+try:
+    import numpy as np
+except ImportError:  # pragma: no cover - optional dependency for image processing
+    np = None
+try:
+    import pyautogui
+except ImportError:  # pragma: no cover - optional dependency for automation
+    pyautogui = None
+try:
+    import winsound
+except ImportError:  # pragma: no cover - Linux/CI environment
+    winsound = None
+
+
+def beep(freq=1000, duration=200):
+    if winsound is not None:
+        winsound.Beep(freq, duration)
 
 log_path = "log.txt"
 stats_path = "bot_stats.json"
@@ -166,8 +188,7 @@ print("=" * 150)
 data = read_log()
 
 if len(data) < 50:
-    print(f"❌ خطأ: البيانات قليلة ({len(data)} رقم). المطلوب 50 على الأقل!")
-    exit()
+    print(f"⚠️  البيانات الحالية قليلة ({len(data)} رقم). سيستمر البوت بالعمل مع بيانات جزئية حتى تتوفر نتائج كافية.")
 
 print(f"\n✓ تم تحميل {len(data):,} رقم من log.txt")
 print(f"✓ التدريب على آخر 300 نتيجة فقط (نافذة متحركة)\n")
@@ -212,7 +233,7 @@ while True:
                 stats['total'] += 1
                 save_result(file_to_save, check_round, last_pred, actual, last_conf, status)
                 save_stats(stats)
-                winsound.Beep(beep_freq, beep_duration)
+                beep(beep_freq, beep_duration)
                 
                 win_rate = (stats['wins'] / stats['total'] * 100) if stats['total'] > 0 else 0
                 print(f"Round {check_round:7d}: Pred={last_pred}({NAMES[last_pred]}) | Actual={actual}({NAMES[actual]}) | {status} | Rate={win_rate:.2f}%")

@@ -1,6 +1,16 @@
 # -*- coding: utf-8 -*-
-import os, time, winsound
+import os, time
 from collections import defaultdict, Counter
+
+try:
+    import winsound
+except ImportError:  # pragma: no cover - Linux/CI environment
+    winsound = None
+
+
+def beep(freq=1000, duration=200):
+    if winsound is not None:
+        winsound.Beep(freq, duration)
 
 log_path = "log.txt"
 NAMES = {1: "Corn", 2: "Chick", 3: "Tomato", 4: "Cow", 5: "Chili", 6: "Fish", 7: "Carrot", 8: "Shrimp"}
@@ -21,7 +31,7 @@ def load_history():
         return []
 
 def analyze(hist):
-    if len(hist) < 30:
+    if not hist:
         return None
 
     total = len(hist)
@@ -53,7 +63,7 @@ def analyze(hist):
 
     last_pair = (hist[-2], hist[-1]) if len(hist) >= 2 else None
     trans2 = defaultdict(Counter)
-    for i in range(len(hist)-2):
+    for i in range(max(0, len(hist)-2)):
         a, b, c = hist[i], hist[i+1], hist[i+2]
         trans2[(a, b)][c] += 1
     trans2_prob = {i: 0 for i in ALL}
@@ -130,7 +140,7 @@ def analyze(hist):
     }
 
 def beep_alert():
-    winsound.Beep(1000, 200)
+    beep(1000, 200)
 
 print("=" * 85)
 print("SMART PREDICTOR BOT - BALANCED HUNTING")
@@ -140,7 +150,7 @@ last_len = 0
 while True:
     try:
         hist = load_history()
-        if len(hist) > last_len and len(hist) >= 30:
+        if len(hist) > last_len:
             last_len = len(hist)
             res = analyze(hist)
             if res:
@@ -157,25 +167,25 @@ while True:
                 print("+" + "=" * 83 + "+")
                 print("RANK |  ITEM        |  PROB   |  TYPE           | STRATEGY")
                 print("+" + "=" * 83 + "+")
-                
+
                 for rank, (item, prob) in enumerate(top4, 1):
                     itype = "Vegetable" if item in VEG else "Meat"
                     strategy = "PRIMARY" if rank == 1 else "SECONDARY" if rank == 2 else "BACKUP" if rank == 3 else "FALLBACK"
                     print(f"  {rank}    |  {item:2d} ({NAMES[item]:7s})  |  {prob:6.2f}  |  {itype:15s} | {strategy}")
-                
+
                 print("+" + "=" * 83 + "+")
                 print(f"CONFIDENCE: {conf:.1f}% | MEAT: {meat_cnt}/2 | VEG: {veg_cnt}/2 | STRENGTH: {'STRONG' if strong else 'MEDIUM'}")
-                
+
                 print("\nHUNTING STATUS:")
                 print(f"   OK: {veg_cnt} Vegetables + {meat_cnt} Meat = 4 Perfect")
-                
+
                 if conf > 50:
                     print(f"   HIGH CONFIDENCE: {conf:.1f}%")
-                    winsound.Beep(1200, 300)
+                    beep(1200, 300)
                 elif conf > 40:
                     print(f"   GOOD CONFIDENCE: {conf:.1f}%")
                     beep_alert()
-                
+
                 print("\nALL ITEMS ANALYSIS:")
                 print("-" * 65)
                 for i in ALL:
@@ -184,9 +194,9 @@ while True:
                     itype = "V" if i in VEG else "M"
                     in_top4 = "STAR" if any(item == i for item, _ in top4) else "    "
                     print(f"{in_top4} {itype} Item {i} ({NAMES[i]:7s}): {all_scores[i]:6.2f} {bar}")
-                
+
                 print("\n" + "=" * 85 + "\n")
-        
+
         time.sleep(0.5)
     
     except KeyboardInterrupt:
